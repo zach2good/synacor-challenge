@@ -33,6 +33,7 @@ auto window = Window("Synacor VM", 1280, 720);
 VM vm = VM();
 
 bool im_openMemoryEditor = true; 
+int im_memoryEditorPage = 0;
 bool im_openRegisterEditor = true; 
 bool im_openStackEditor = true; 
 bool im_openConsole = true;
@@ -208,15 +209,29 @@ void main_loop()
         ImGui::Separator();
         ImGui::Separator();
 
+        im_memoryEditorPage = memPtr / 15;
+
         ImGui::Text("Memory pos"); ImGui::NextColumn();
         ImGui::Text("Value"); ImGui::NextColumn();
         ImGui::Separator();
         ImGui::Separator();
 
-        for (int i = 1000; i < 3000; ++i)
+        int im_memStart = im_memoryEditorPage * 15;
+        int im_memEnd = im_memStart + 15;
+        for (int i = im_memStart; i < im_memEnd; ++i)
         {
-            ImGui::Text("%d", i); ImGui::NextColumn();
-            ImGui::Text("%d", mem->at(i)); ImGui::NextColumn();
+
+            if (i == memPtr) 
+            {
+                ImGui::TextColored(ImColor(255,0,0), "%d", i); ImGui::NextColumn();
+                ImGui::TextColored(ImColor(255,0,0), "%d", mem->at(i)); ImGui::NextColumn();
+            }
+            else
+            {
+                ImGui::Text("%d", i); ImGui::NextColumn();
+                ImGui::Text("%d", mem->at(i)); ImGui::NextColumn();
+            }
+
             ImGui::Separator();
         }
             
