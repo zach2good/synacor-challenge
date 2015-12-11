@@ -50,8 +50,6 @@ public:
 	VM();
 	~VM();
 
-	string ss_str;
-
 	void init();
 
 	void step();
@@ -161,11 +159,6 @@ public:
 		return instructionCount;
 	}
 
-	inline string getString()
-	{
-		return ss_str;
-	}
-
 	inline vector<ushort>* getMemory()
 	{
 		return &m_memory;
@@ -191,13 +184,42 @@ public:
 		return commands;
 	}
 
-	inline void reverseStack() {
+	inline void reverseStack() 
+	{
 		if (!m_stack.empty()) {
 			temp_stack.push(m_stack.top());
 			m_stack.pop();
 			reverseStack();
 		}
 		return;
+	}
+
+	inline void resetMachine() 
+	{
+		printf("Resetting Registers\n");
+		for (int i = 0; i < 8; i++)
+		{
+			m_reg[i] = 0;
+		}
+
+		printf("Resetting Stack\n");
+		//m_stack = stack<ushort>();
+		int stack_size = m_stack.size();
+		for (int i = 0; i < stack_size; i++)
+		{
+			m_stack.pop();
+		}
+
+		printf("Resetting Memory\n");
+		m_memory = vector<ushort>();
+
+		printf("Resetting Pointers\n");
+		memPtr = 0;
+		currentOp = OP_NOOP;
+		instructionCount = 0;
+
+		printf("isRunning = false \n");
+		isRunning = false;
 	}
 
 	void sendInput(string inputStr);
@@ -207,6 +229,9 @@ public:
 	bool stringDigest = false;
 	string digest;
 
+	bool debug = true;
+	bool printOutput = false;
+
 private:
 
 	// define the machine
@@ -214,8 +239,6 @@ private:
 	stack<ushort> m_stack = stack<ushort>();
 	stack<ushort> temp_stack = stack<ushort>();
 	vector<ushort> m_memory = vector<ushort>();
-
-	bool debug = true;
 
 	int currentOp = OP_NOOP;
 	int memPtr = 0;
@@ -233,7 +256,7 @@ private:
 	std::string openFile(std::string input, bool newLine);
 	std::vector<std::string> split(const std::string &s, const std::string &delims);
 
-	inline std::string format(const char* fmt, ...)
+inline std::string format(const char* fmt, ...)
 {
 
     va_list vl;

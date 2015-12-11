@@ -114,6 +114,9 @@ void main_loop()
     {
         if (ImGui::Button("Pause VM")) vm.isRunning = false;
     }
+
+    if (ImGui::Button("Reset")) vm.resetMachine();
+
     ImGui::Text("");
 
     if (ImGui::Button("Console")) im_openConsole = !im_openConsole;
@@ -122,8 +125,7 @@ void main_loop()
     if (ImGui::Button("Register Editor")) im_openRegisterEditor = !im_openRegisterEditor;
 
     ImGui::Text("");
-
-    if (ImGui::Button("Restore State (dump_695700.bin)")) vm.restoreState("dump_695700.bin");
+    if (ImGui::Button("Load dump_695700.bin")) vm.restoreState("dump_695700.bin");
 
     //if (ImGui::Button("Help")){} 
 
@@ -211,8 +213,19 @@ void main_loop()
     ImGui::Separator();
     ImGui::Separator();
 
-    int im_memStart = im_memoryEditorPage * 15;
-    int im_memEnd = im_memStart + 15;
+    int memItemsToShow = 0;
+    if (mem->size() > 15)
+    {
+        memItemsToShow = 15;
+    }
+    else
+    {
+        memItemsToShow = mem->size();
+    }
+
+
+    int im_memStart = im_memoryEditorPage * memItemsToShow;
+    int im_memEnd = im_memStart + memItemsToShow;
     for (int i = im_memStart; i < im_memEnd; ++i)
     {
 

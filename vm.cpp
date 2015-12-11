@@ -12,6 +12,7 @@ VM::~VM()
 
 void VM::init()
 {
+	resetMachine();
 	m_memory = loadBin("fs/challenge.bin");
 }
 
@@ -70,7 +71,7 @@ vector<ushort> VM::loadBin(string input)
 	int length;
 	uchar * buffer = nullptr;
 
-	ifstream file(input, ios::in | ios::binary);
+	ifstream file(input.c_str(), ios::in | ios::binary);
 	if (file.is_open())
 	{
 		// get length of file:
@@ -110,7 +111,21 @@ ushort VM::value(ushort s)
 }
 
 void VM::step() {
-	handleOP(m_memory.at(memPtr));
+
+	if (memPtr > m_memory.size() - 1)
+	{
+		printf("Nothing loaded...\n");
+	}
+	else
+	{
+		handleOP(m_memory.at(memPtr));
+
+		if (stringDigest && printOutput)
+		{
+			printf(digest.c_str());
+			digest = "";
+		}
+	}	
 }
 
 void VM::run() {
@@ -547,10 +562,12 @@ void VM::dumpState()
 
 void VM::restoreState(string input_bin)
 {
+	printf("Resetting\n");
+	resetMachine();
+
 	printf("Restoring state from: %s\n", input_bin.c_str());
 
 	string s = "fs/" + input_bin;
-
 	auto in = split(openFile(s), "\n");
 
 	auto invec = vector<int>();
@@ -560,12 +577,14 @@ void VM::restoreState(string input_bin)
 		invec.push_back(stoi(str));
 	}
 
+	printf("Registers\n");
 	// Registers
 	for (int i = 0; i < 8; i++)
 	{
 		m_reg[i] = invec.at(i);
 	}
 
+	printf("Stack\n");
 	// Stack
 	int stackSize = invec.at(8);
 	int stackStart = 9;
@@ -575,21 +594,26 @@ void VM::restoreState(string input_bin)
 		m_stack.push(invec.at(stackStart + i));
 	}
 
+	printf("Repopulate Stack\n");
 	reverseStack();
 	m_stack = temp_stack;
 
+	printf("Memory\n");
 	// Memory
 	int memorySize = invec.at(stackStart + stackSize);
 	int memoryStart = stackStart + stackSize + 1;
 	for (int i = 0; i < memorySize; i++)
 	{
-		m_memory.at(i) = invec.at(memoryStart + i);
+		m_memory.push_back(invec.at(memoryStart + i));
 	}
 
+	printf("Final Pointers\n");
 	int end = invec.size();
 	currentOp = invec.at(end - 3);
 	memPtr = invec.at(end - 2);
 	instructionCount = invec.at(end - 1);
+
+	printf("State loaded from: %s\n", input_bin.c_str());
 }
 
 void VM::sendInput(string inputStr)

@@ -1,0 +1,1 @@
+g++ -std=c++11 win_main.cpp vm.cpp -o syn && syn.exe
