@@ -61,7 +61,7 @@ struct Console
 
     void    Draw(const char* title, bool* opened)
     {
-        ImGui::SetNextWindowSize(ImVec2(650,255), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(650,270), ImGuiSetCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(280,430), ImGuiSetCond_FirstUseEver);
         if (!ImGui::Begin(title, opened))
         {
