@@ -125,6 +125,9 @@ void main_loop()
     if (ImGui::Button("Register Editor")) im_openRegisterEditor = !im_openRegisterEditor;
 
     ImGui::Text("");
+    
+    if (ImGui::Button("Load test program")) vm.loadTestProgram();
+    if (ImGui::Button("Load challenge.bin")) vm.init();
     if (ImGui::Button("Load dump_695700.bin")) vm.restoreState("dump_695700.bin");
 
     //if (ImGui::Button("Help")){} 

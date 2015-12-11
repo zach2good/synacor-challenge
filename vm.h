@@ -222,6 +222,17 @@ public:
 		isRunning = false;
 	}
 
+	inline void loadTestProgram()
+	{
+		resetMachine();
+		m_memory.push_back(9);
+		m_memory.push_back(32768);
+		m_memory.push_back(32769);
+		m_memory.push_back(4);
+		m_memory.push_back(19);
+		m_memory.push_back(32768);
+	}
+
 	void sendInput(string inputStr);
 
 	bool isRunning = false;
