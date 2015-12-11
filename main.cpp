@@ -34,6 +34,7 @@ VM vm = VM();
 
 bool im_openMemoryEditor = true; 
 int im_memoryEditorPage = 0;
+bool im_memoryFollowPointer = true;
 bool im_openRegisterEditor = true; 
 bool im_openStackEditor = true; 
 bool im_openConsole = true;
@@ -143,7 +144,6 @@ void main_loop()
 
         ImGui::Begin("Register Editor");
             ImGui::Columns(2, "Registers");
-            ImGui::Separator();
             ImGui::Text("Address"); ImGui::NextColumn();
             ImGui::Text("Value"); ImGui::NextColumn();
             ImGui::Separator();
@@ -174,7 +174,6 @@ void main_loop()
 
         ImGui::Begin("Stack Editor");
             ImGui::Columns(2, "Stack");
-            ImGui::Separator();
             ImGui::Text("Depth"); ImGui::NextColumn();
             ImGui::Text("Value"); ImGui::NextColumn();
             ImGui::Separator();
@@ -192,7 +191,7 @@ void main_loop()
 
     if (im_openMemoryEditor)
     {
-        ImGui::SetNextWindowSize(ImVec2(250,400), ImGuiSetCond_FirstUseEver);
+        ImGui::SetNextWindowSize(ImVec2(350,400), ImGuiSetCond_FirstUseEver);
         ImGui::SetNextWindowPos(ImVec2(480,30), ImGuiSetCond_FirstUseEver);
 
         auto mem = vm.getMemory();
@@ -201,15 +200,25 @@ void main_loop()
         ImGui::Begin("Memory Editor");
         
         ImGui::Columns(2, "Memory");
+
+        ImGui::Text("Memory Ptr: %d", memPtr); ImGui::NextColumn();
+        ImGui::Checkbox("Follow MemPtr", &im_memoryFollowPointer); ImGui::NextColumn();
+
+        ImGui::Separator();
         ImGui::Separator();
 
-        ImGui::Text("Memory Ptr"); ImGui::NextColumn();
-        ImGui::Text("%d", memPtr); ImGui::NextColumn();
+        if (im_memoryFollowPointer)
+        {
+            im_memoryEditorPage = memPtr / 15;
+        }
+        else
+        {
+            if (ImGui::Button("Prev")) if (im_memoryEditorPage != 0) im_memoryEditorPage--; ImGui::NextColumn();
+            if (ImGui::Button("Next")) im_memoryEditorPage++; ImGui::NextColumn();
 
-        ImGui::Separator();
-        ImGui::Separator();
-
-        im_memoryEditorPage = memPtr / 15;
+             ImGui::Separator();
+            ImGui::Separator();  
+        }    
 
         ImGui::Text("Memory pos"); ImGui::NextColumn();
         ImGui::Text("Value"); ImGui::NextColumn();
