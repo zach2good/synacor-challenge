@@ -466,21 +466,11 @@ void VM::handleOP(int op)
 		// this means that you can safely read whole lines from the keyboard and trust that they will be fully read
 		a = getRegister(m_memory.at(memPtr + 1));
 
-		if (debug) format("%d OP_IN\n", op);
+		if (debug) digest += format("%d OP_IN\n", op);
 
 		uchar input;
-		if (!commands.empty())
-		{
-			input = commands.front();
-			commands.pop_front();
-			printf("%c", input);
-			m_reg[a] = input;
-		}
-		else
-		{
-			commands.push_back('\n');
-			isRunning = false;
-		}
+		input = getchar();
+		m_reg[a] = input;
 
 		memPtr += 1;
 		break;	

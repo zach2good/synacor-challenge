@@ -213,7 +213,7 @@ void main_loop()
         ImGui::Separator();
         ImGui::Separator();
 
-        for (int i = 0; i < 100; ++i)
+        for (int i = 1000; i < 3000; ++i)
         {
             ImGui::Text("%d", i); ImGui::NextColumn();
             ImGui::Text("%d", mem->at(i)); ImGui::NextColumn();
