@@ -37,10 +37,15 @@ bool im_openMemoryEditor = true;
 int im_memoryEditorPage = 0;
 bool im_memoryFollowPointer = true;
 bool im_openRegisterEditor = true;
+bool im_openRegisterSetter = false;
+
+    int re_address = 0;
+    int re_value = 0;
+
 bool im_openStackEditor = true;
 bool im_openConsole = true;
 
-ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse;
+ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse;
 
 bool run_vm = false;
 
@@ -122,7 +127,7 @@ void main_loop()
     if (ImGui::Button("Console")) im_openConsole = !im_openConsole;
     if (ImGui::Button("Memory Editor")) im_openMemoryEditor = !im_openMemoryEditor;
     if (ImGui::Button("Stack Editor")) im_openStackEditor = !im_openStackEditor;
-    if (ImGui::Button("Register Editor")) im_openRegisterEditor = !im_openRegisterEditor;
+    if (ImGui::Button("Register Viewer")) im_openRegisterEditor = !im_openRegisterEditor;
 
     ImGui::Text("");
     
@@ -139,6 +144,14 @@ void main_loop()
     ImGui::SetNextWindowPos(ImVec2(30, 430), ImGuiSetCond_FirstUseEver);
 
     ImGui::Begin("Register Editor", &im_openRegisterEditor, window_flags);
+
+    ImGui::InputInt("Address", &re_address);
+    ImGui::InputInt("Value", &re_value);
+
+    if (ImGui::Button("Set"))
+    {
+        vm.getRegisters()[re_address] = re_value;
+    } 
     ImGui::Columns(2, "Registers");
     ImGui::Text("Address"); ImGui::NextColumn();
     ImGui::Text("Value"); ImGui::NextColumn();

@@ -243,14 +243,13 @@ public:
 	bool debug = true;
 	bool printOutput = false;
 
-private:
-
 	// define the machine
 	ushort m_reg[8] = { 0 };
 	stack<ushort> m_stack = stack<ushort>();
 	stack<ushort> temp_stack = stack<ushort>();
 	vector<ushort> m_memory = vector<ushort>();
 
+private:
 	int currentOp = OP_NOOP;
 	int memPtr = 0;
 	void handleOP(int op);
