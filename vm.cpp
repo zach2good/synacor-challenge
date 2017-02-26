@@ -2,7 +2,6 @@
 
 VM::VM()
 {
-	init();
 }
 
 VM::~VM()
@@ -12,618 +11,627 @@ VM::~VM()
 
 void VM::init()
 {
-	resetMachine();
-	m_memory = loadBin("fs/challenge.bin");
+    loadTestProgram();
+
+    m_pc = 0;
+    m_count = 0;
+
+    isRunning = false;
 }
 
-std::string VM::openFile(std::string input, bool newLine = true)
+void VM::init(std::string input)
 {
-	string temp;
-	string content;
-	ifstream file(input);
-	if (file.is_open())
-	{
-		while (getline(file, temp))
-		{
-			if (newLine)
-				content += temp + "\n";
-			else
-				content += temp;
-		}
-		file.close();
-	}
+    loadFile(input);
 
-	else cout << "Unable to open file";
+    m_pc = 0;
+    m_count = 0;
 
-	return content;
+    isRunning = true;
 }
 
-std::vector<std::string> VM::split(const std::string &s, const std::string &delims)
+void VM::loadFile(std::string input)
 {
-	std::vector<std::string> result;
-	std::string::size_type pos = 0;
-	while (std::string::npos != (pos = s.find_first_not_of(delims, pos))) {
-		auto pos2 = s.find_first_of(delims, pos);
-		result.emplace_back(s.substr(pos, std::string::npos == pos2 ? pos2 : pos2 - pos));
-		pos = pos2;
-	}
-	return result;
-}
+    size_t length;
+    uchar* buffer = nullptr;
 
+        std::ifstream file(input.c_str(), std::ios::in | std::ios::binary);
+        if (file.is_open())
+        {
+            // get length of file:
+            file.seekg(0, std::ios::end);
+            length = file.tellg();
+            file.seekg(0, std::ios::beg);
+
+            // allocate memory:
+            buffer = new uchar[length];
+
+            file.read((char*)buffer, length);
+            file.close();
+        }
+
+        for (int i = 0; i < length / 2; i++)
+        {
+            ushort c = ((ushort*)buffer)[i];
+            m_memory.push_back(c);
+        }
+
+    return;
+}
 
 bool VM::isRegister(ushort s)
 {
-	return s >= 32768 && s <= 32775;
+    return s >= 32768 && s <= 32775;
 }
 
 ushort VM::getRegister(ushort s)
 {
-	return s - 32768;
+    return s - 32768;
 }
 
 uchar VM::toAscii(ushort s)
 {
-	return (uchar)s;
-}
-
-vector<ushort> VM::loadBin(string input)
-{
-	int length;
-	uchar * buffer = nullptr;
-
-	ifstream file(input.c_str(), ios::in | ios::binary);
-	if (file.is_open())
-	{
-		// get length of file:
-		file.seekg(0, ios::end);
-		length = file.tellg();
-		file.seekg(0, ios::beg);
-
-		// allocate memory:
-		buffer = new uchar[length];
-
-		file.read((char*)buffer, length);
-		file.close();
-	}
-	else
-	{
-		//cout << "Unable to open file" << endl;
-	}
-
-	vector<ushort> codes = vector<ushort>();
-
-	for (int i = 0; i < length / 2; i++)
-	{
-		ushort c = ((ushort*)buffer)[i];
-		codes.push_back(c);
-	}
-
-	return codes;
+    return (uchar)s;
 }
 
 ushort VM::value(ushort s)
 {
-	if (isRegister(s))
-	{
-		return m_reg[getRegister(s)];
-	}
-	return s;
+    if (isRegister(s))
+    {
+        return m_reg[getRegister(s)];
+    }
+    return s;
 }
 
-void VM::step() {
-
-	if (memPtr > m_memory.size() - 1)
-	{
-		printf("Nothing loaded...\n");
-	}
-	else
-	{
-		handleOP(m_memory.at(memPtr));
-
-		if (stringDigest && printOutput)
-		{
-			printf(digest.c_str());
-			digest = "";
-		}
-	}	
-}
-
-void VM::run() {
-
-	while (isRunning)  // Input
-	{
-		step();
-	}
+void VM::step()
+{
+    if (m_pc > m_memory.size()) m_pc = 0;
+    handleOP(m_memory.at(m_pc));
 }
 
 void VM::handleOP(int op)
 {
-	ushort size = m_memory.size();
-
-	currentOp = op;
-
-	if (debug)
-	{
-		digest += format("%d> ", memPtr);
-	}
-
-	switch (op)
-	{
-	case OP_HALT: // 0
-	{
-		// stop execution and terminate the program
-		if (debug) digest += format("%d OP_HALT\n", op);
-		memPtr = size;
-		break;
-	}
-
-	case OP_SET: // 1 a b
-	{
-		// set register <a> to the value of <b>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		if (debug) digest += format("%d OP_SET: R%d %d\n", op, m_reg[a], b);
-		m_reg[a] = b;
-
-		memPtr += 2;
-		break;
-	}
-
-	case OP_PUSH: // 2 a
-	{
-		// push <a> onto the stack
-		a = value(m_memory.at(memPtr + 1));
-		if (debug) digest += format("%d OP_PUSH: %d\n", op, a);
-
-		m_stack.push(a);
-
-		memPtr += 1;
-		break;
-	}
-
-	case OP_POP: // 3 a
-	{
-		// remove the top element from the stack and write it into <a>; empty stack = error
-		a = getRegister(m_memory.at(memPtr + 1));
-		if (debug) digest += format("%d OP_POP: R%d\n", op, a);
-
-		if (m_stack.empty())
-		{
-			digest += format("Empty Stack!\n");
-			memPtr = size;
-			break;
-		}
-		else
-		{
-			m_reg[a] = m_stack.top();
-			m_stack.pop();
-
-			memPtr += 1;
-			break;
-		}
-	}
-
-	case OP_EQ: // 4 a b
-	{
-		// set <a> to 1 if <b> is equal to <c>; set it to 0 otherwise
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_EQ: R%d %d %d\n", op, a, b, c);
-
-		if (b == c)
-		{
-			m_reg[a] = 1;
-		}
-		else
-		{
-			m_reg[a] = 0;
-		}
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_GT: // 5 a b c
-	{
-		// set <a> to 1 if <b> is greater than <c>; set it to 0 otherwise
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_GT: R%d %d %d\n", op, m_reg[a], b, c);
-
-		if (b > c)
-		{
-			m_reg[a] = 1;
-		}
-		else
-		{
-			m_reg[a] = 0;
-		}
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_JMP: // 6 a
-	{
-		// jump to <a>
-		a = value(m_memory.at(memPtr + 1));
-
-		if (debug) digest += format("%d OP_JMP: %d\n", op, a);
-
-		memPtr = a - 1;
-
-		//i += 1;
-		break;
-	}
-
-	case OP_JT: // 7 a b
-	{
-		// if <a> is nonzero, jump to <b>
-		a = value(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-
-		if (debug) digest += format("%d OP_JT: %d %d\n", op, a, b);
-
-		if (a > 0)
-		{
-			memPtr = b - 1;
-			break;
-		}
-		else
-		{
-			memPtr += 2;
-			break;
-		}
-	}
-
-	case OP_JF: // 8 a b
-	{
-		// if <a> is zero, jump to <b>
-		a = value(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-
-		if (debug) digest += format("%d OP_JF: %d %d\n", op, a, b);
-
-		if (a == 0)
-		{
-			memPtr = b - 1;
-			break;
-		}
-		else
-		{
-			memPtr += 2;
-			break;
-		}
-	}
-
-	case OP_ADD: // 9 a b c
-	{
-		// assign into <a> the sum of <b> and <c> (modulo 32768)
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_ADD: R%d %d %d\n", op, a, b, c);
-
-		m_reg[a] = (b + c) % 32768;
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_MULT: // 10 a b c
-	{
-		// store into <a> the product of <b> and <c> (modulo 32768)
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_MULT: R%d %d %d\n", op, a, b, c);
-
-		m_reg[a] = (b * c) % 32768;
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_MOD: // 11 a b c
-	{
-		// store into <a> the remainder of <b> divided by <c>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_MOD: R%d %d %d\n", op, a, b, c);
-
-		m_reg[a] = (b % c);
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_AND: // 12 a b c
-	{
-		// stores into <a> the bitwise and of <b> and <c>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_AND: R%d %d %d\n", op, a, b, c);
-
-		m_reg[a] = b & c;
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_OR: // 13 a b c
-	{
-		// stores into <a> the bitwise or of <b> and <c>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-		c = value(m_memory.at(memPtr + 3));
-
-		if (debug) digest += format("%d OP_OR: R%d %d %d\n", op, a, b, c);
-
-		m_reg[a] = b | c;
-
-		memPtr += 3;
-		break;
-	}
-
-	case OP_NOT: // 14 a b 
-	{
-		// stores 15-bit bitwise inverse of <b> in <a>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-
-		if (debug) digest += format("%d OP_NOT: R%d %d\n", op, a, b);
-
-		m_reg[a] = (~b & 32767);
-
-		memPtr += 2;
-		break;
-	}
-
-	case OP_RMEM: // 15 a b 
-	{
-		// read memory at address <b> and write it to <a>
-		a = getRegister(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-
-		if (debug) digest += format("%d OP_RMEM: %d %d\n", op, a, b);
-
-		m_reg[a] = m_memory.at(b);
-
-		memPtr += 2;
-		break;
-	}
-
-	case OP_WMEM: // 16 a b 
-	{
-		// write the value from <b> into memory at address <a>
-		a = value(m_memory.at(memPtr + 1));
-		b = value(m_memory.at(memPtr + 2));
-
-		if (debug) digest += format("%d OP_WMEM: %d %d\n", op, a, b);
-
-		m_memory.at(a) = b;
-
-		memPtr += 2;
-		break;
-	}
-
-	case OP_CALL: // 17 a  
-	{
-		// write the address of the next instruction to the stack and jump to <a>
-		a = value(m_memory.at(memPtr + 1));
-
-		m_stack.push(memPtr + 2);
-
-		memPtr = a - 1;
-
-		if (debug) digest += format("%d OP_CALL: %d\n", op, a);
-
-		break;
-	}
-
-	case OP_RET: // 18  
-	{
-		// remove the top element from the stack and jump to it; empty stack = halt
-		if (m_stack.empty())
-		{
-			digest += format("Empty Stack!\n");
-			memPtr = size;
-			break;
-		}
-		else
-		{
-			val = m_stack.top();
-			m_stack.pop();
-
-			memPtr = val - 1;
-
-			if (debug) digest += format("%d OP_RET (%d)\n", op, val);
-
-			break;
-		}
-	}
-
-	case OP_OUT: // 19 a
-	{
-		// write the character represented by ascii code <a> to the terminal
-		a = m_memory.at(memPtr + 1);
-
-		if (debug) digest += format("%d OP_OUT ", op);
-
-		if (isRegister(a))
-		{
-			digest += format("%c", toAscii(m_reg[getRegister(a)]));
-		}
-		else
-		{
-			digest += format("%c", a);
-		}
-
-		if (debug) digest += '\n';
-
-		memPtr += 1;
-		break;
-	}
-
-	case OP_IN: // 20 a
-	{
-		// read a character from the terminal and write its ascii code to <a>; it can be assumed that once input starts, it will continue until a newline is encountered; 
-		// this means that you can safely read whole lines from the keyboard and trust that they will be fully read
-		a = getRegister(m_memory.at(memPtr + 1));
-
-		if (debug) digest += format("%d OP_IN\n", op);
-
-		uchar input;
-		input = getchar();
-		m_reg[a] = input;
-
-		memPtr += 1;
-		break;	
-	}
-
-	case OP_NOOP: // 21
-	{
-		if (debug) digest += format("%d OP_NOOP\n", op);
-		break;
-	}
-
-	default:
-	{
-		digest += format("OP Code: %d not recognised\n", op);
-		memPtr = size;
-		break;
-	}
-	}
-
-	if (digest[digest.size()-1] == '\n')
-	{
-		stringDigest = true;
-	}
-
-
-	memPtr += 1;
-	instructionCount += 1;
+    m_count++;
+
+    switch (op)
+    {
+    case OP_HALT: // 0
+    {
+        isRunning = false;
+        break;
+
+    case OP_SET: // 1 a b
+    {
+    }
+        // set register <a> to the value of <b>
+       a = getRegister(m_memory.at(m_pc + 1));
+       b = value(m_memory.at(m_pc + 2));
+
+        m_reg[a] = b;
+
+        m_pc += 3;
+
+        break;
+    }
+
+    case OP_PUSH: // 2 a
+    {
+        // push <a> onto the stack
+        a = value(m_memory.at(m_pc + 1));
+
+        m_stack.push(a);
+
+        m_pc += 2;
+        break;
+    }
+
+    case OP_POP: // 3 a
+    {
+        // remove the top element from the stack and write it into <a>; empty stack = error
+        a = getRegister(m_memory.at(m_pc + 1));
+
+        if (m_stack.empty())
+        {
+            m_pc = m_memory.size();
+            break;
+        }
+        else
+        {
+            m_reg[a] = m_stack.top();
+            m_stack.pop();
+
+            m_pc += 2;
+            break;
+        }
+    }
+
+    case OP_EQ: // 4 a b
+    {
+        // set <a> to 1 if <b> is equal to <c>; set it to 0 otherwise
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+        c = value(m_memory.at(m_pc + 3));
+
+        if (b == c)
+        {
+            m_reg[a] = 1;
+        }
+        else
+        {
+            m_reg[a] = 0;
+        }
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_GT: // 5 a b c
+    {
+        // set <a> to 1 if <b> is greater than <c>; set it to 0 otherwise
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+        c = value(m_memory.at(m_pc + 3));
+
+        if (b > c)
+        {
+            m_reg[a] = 1;
+        }
+        else
+        {
+            m_reg[a] = 0;
+        }
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_JMP: // 6 a
+    {
+        a = value(m_memory.at(m_pc + 1));
+
+        m_pc = a;
+        break;
+    }
+
+    case OP_JT: // 7 a b
+    {
+        // if <a> is nonzero, jump to <b>
+        a = value(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+
+        if (a > (ushort)0)
+        {
+            m_pc = b;
+            break;
+        }
+        else
+        {
+            m_pc += 3;
+            break;
+        }
+    }
+
+    case OP_JF: // 8 a b
+    {
+        // if <a> is zero, jump to <b>
+        a = value(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+
+        if (a < 1)
+        {
+            m_pc = b;
+            break;
+        }
+        else
+        {
+            m_pc += 3;
+            break;
+        }
+    }
+
+    case OP_ADD: // 9 a b c
+    {
+        // assign into <a> the sum of <b> and <c> (modulo 32768)
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+        c = value(m_memory.at(m_pc + 3));
+
+        m_reg[a] = (b + c) % 32768;
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_MULT: // 10 a b c
+    {
+        // store into <a> the product of <b> and <c> (modulo 32768)
+         a = getRegister(m_memory.at(m_pc + 1));
+         b = value(m_memory.at(m_pc + 2));
+         c = value(m_memory.at(m_pc + 3));
+
+        m_reg[a] = (b * c) % 32768;
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_MOD: // 11 a b c
+    {
+        // store into <a> the remainder of <b> divided by <c>
+         a = getRegister(m_memory.at(m_pc + 1));
+         b = value(m_memory.at(m_pc + 2));
+         c = value(m_memory.at(m_pc + 3));
+
+        m_reg[a] = (b % c);
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_AND: // 12 a b c
+    {
+        // stores into <a> the bitwise and of <b> and <c>
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+        c = value(m_memory.at(m_pc + 3));
+
+        m_reg[a] = b & c;
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_OR: // 13 a b c
+    {
+        // stores into <a> the bitwise or of <b> and <c>
+         a = getRegister(m_memory.at(m_pc + 1));
+         b = value(m_memory.at(m_pc + 2));
+         c = value(m_memory.at(m_pc + 3));
+
+        m_reg[a] = b | c;
+
+        m_pc += 4;
+        break;
+    }
+
+    case OP_NOT: // 14 a b
+    {
+        // stores 15-bit bitwise inverse of <b> in <a>
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+
+        m_reg[a] = (~b & 32767);
+
+        m_pc += 3;
+        break;
+    }
+
+    case OP_RMEM: // 15 a b
+    {
+        // read memory at address <b> and write it to <a>
+        a = getRegister(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+
+        m_reg[a] = m_memory.at(b);
+
+        m_pc += 3;
+        break;
+    }
+
+    case OP_WMEM: // 16 a b
+    {
+        // write the value from <b> into memory at address <a>
+        a = value(m_memory.at(m_pc + 1));
+        b = value(m_memory.at(m_pc + 2));
+
+        m_memory.at(a) = b;
+
+        m_pc += 3;
+        break;
+    }
+
+    case OP_CALL: // 17 a
+    {
+        // write the address of the next instruction to the stack and jump to <a>
+        a = value(m_memory.at(m_pc + 1));
+
+        m_stack.push(m_pc + 2);
+
+        m_pc = a;
+
+        break;
+    }
+
+    case OP_RET: // 18
+    {
+        // remove the top element from the stack and jump to it; empty stack = halt
+        if (m_stack.empty())
+        {
+            m_pc = m_memory.size();
+            break;
+        }
+        else
+        {
+            a = m_stack.top();
+            m_stack.pop();
+
+            m_pc = a;
+
+            break;
+        }
+    }
+
+    case OP_OUT: // 19 a
+    {
+        a = m_memory.at(m_pc + 1);
+
+        if (isRegister(a))
+        {
+            //std::cout << toAscii(m_reg[getRegister(a)]);
+            m_outputBuffer += toAscii(m_reg[getRegister(a)]);
+            m_outDeque.push_back(toAscii(m_reg[getRegister(a)]));
+        }
+        else
+        {
+            //std::cout << toAscii(static_cast<char>(a));
+            m_outputBuffer += toAscii(static_cast<char>(a));
+            m_outDeque.push_back(toAscii(static_cast<char>(a)));
+        }
+
+        if (m_outDeque.size() > 750)
+        {
+            m_outDeque.pop_front();
+        }
+
+        m_pc += 2;
+        break;
+    }
+
+    case OP_IN: // 20 a
+    {
+        // read a character from the terminal and write its ascii code to <a>; it can be assumed that once input starts, it will continue until a newline is encountered;
+        // this means that you can safely read whole lines from the keyboard and trust that they will be fully read
+        a = getRegister(m_memory.at(m_pc + 1));
+
+        if (!m_inputDeque.empty())
+        {
+            ushort in = m_inputDeque.front();
+
+            m_inputDeque.pop_front();
+
+            m_outputBuffer += toAscii(static_cast<char>((uchar)in));
+
+            m_reg[a] = toAscii(static_cast<char>((uchar)in));
+
+            m_pc += 2;
+        }
+       break;
+    }
+
+    case OP_NOOP: // 21
+    {
+        m_pc += 1;
+        break;
+    }
+
+    default:
+    {
+       isRunning = false;
+       break;
+    }
+  }
 }
 
-void VM::dumpState()
+std::string VM::opCodeToString(int op)
 {
-	printf("dumpState\n");
-
-	ofstream myfile;
-	myfile.open("fs/dump.bin", ios::out | ios::trunc | ios::binary);
-
-	// dump layout
-	// registers 0-7
-	// stack size
-	// stack contents
-	// memory size
-	// memory contents
-	// currentOp
-	// memPtr
-	// instructionCount
-
-	for (int i = 0; i < 8; i++)
-	{
-		myfile << m_reg[i] << endl;
-	}
-
-	int stack_size = m_stack.size();
-	myfile << stack_size << endl;
-	for (int i = 0; i < stack_size; i++)
-	{
-		myfile << m_stack.top() << endl;
-		m_stack.pop();
-	}
-
-	myfile << m_memory.size() << endl;
-	for (int i = 0; i < m_memory.size(); i++)
-	{
-		myfile << m_memory.at(i) << endl;
-	}
-
-	myfile << currentOp << endl;
-	myfile << memPtr << endl;
-	myfile << instructionCount;
-
-	myfile.close();
-
-	m_reg[0] = 0;
+    std::string s;
+    switch(op)
+    {
+        case 0:
+            s = "OP_HALT";
+            break;
+        case 1:
+            s = "OP_SET";
+            break;
+        case 2:
+            s = "OP_PUSH";
+            break;
+        case 3:
+            s = "OP_POP";
+            break;
+        case 4:
+            s = "OP_EQ";
+            break;
+        case 5:
+            s = "OP_GT";
+            break;
+        case 6:
+            s = "OP_JMP";
+            break;
+        case 7:
+            s = "OP_JT";
+            break;
+        case 8:
+            s = "OP_JF";
+            break;
+        case 9:
+            s = "OP_ADD";
+            break;
+        case 10:
+            s = "OP_MULT";
+            break;
+        case 11:
+            s = "OP_MOD";
+            break;
+        case 12:
+            s = "OP_AND";
+            break;
+        case 13:
+            s = "OP_OR";
+            break;
+        case 14:
+            s = "OP_NOT";
+            break;
+        case 15:
+            s = "OP_RMEM";
+            break;
+        case 16:
+            s = "OP_WMEM";
+            break;
+        case 17:
+            s = "OP_CALL";
+            break;
+        case 18:
+            s = "OP_RET";
+            break;
+        case 19:
+            s = "OP_OUT";
+            break;
+        case 20:
+            s = "OP_IN";
+            break;
+        case 21:
+            s = "OP_NOOP";
+            break;
+        default:
+            s = "";
+            break;
+    }
+    return s;
 }
 
-void VM::restoreState(string input_bin)
+void VM::sendInput(std::string input)
 {
-	printf("Resetting\n");
-	resetMachine();
-
-	printf("Restoring state from: %s\n", input_bin.c_str());
-
-	string s = "fs/" + input_bin;
-	auto in = split(openFile(s), "\n");
-
-	auto invec = vector<int>();
-	for (int i = 0; i < in.size(); i++)
-	{
-		string str = in.at(i);
-		invec.push_back(stoi(str));
-	}
-
-	printf("Registers\n");
-	// Registers
-	for (int i = 0; i < 8; i++)
-	{
-		m_reg[i] = invec.at(i);
-	}
-
-	printf("Stack\n");
-	// Stack
-	int stackSize = invec.at(8);
-	int stackStart = 9;
-	for (int i = 0; i < stackSize; i++)
-	{
-		// TODO: These are in the wrong order
-		m_stack.push(invec.at(stackStart + i));
-	}
-
-	printf("Repopulate Stack\n");
-	reverseStack();
-	m_stack = temp_stack;
-
-	printf("Memory\n");
-	// Memory
-	int memorySize = invec.at(stackStart + stackSize);
-	int memoryStart = stackStart + stackSize + 1;
-	for (int i = 0; i < memorySize; i++)
-	{
-		m_memory.push_back(invec.at(memoryStart + i));
-	}
-
-	printf("Final Pointers\n");
-	int end = invec.size();
-	currentOp = invec.at(end - 3);
-	memPtr = invec.at(end - 2);
-	instructionCount = invec.at(end - 1);
-
-	printf("State loaded from: %s\n", input_bin.c_str());
+    for (int var = 0; var < input.size(); ++var) {
+        m_inputDeque.push_back(input.at(var));
+    }
+    m_inputDeque.push_back(10);
 }
 
-void VM::sendInput(string inputStr)
+void VM::loadTestProgram()
 {
-	int i_sz = inputStr.size();
+    m_memory.push_back(9);
+    m_memory.push_back(32768);
+    m_memory.push_back(32769);
+    m_memory.push_back(4);
+    m_memory.push_back(19);
+    m_memory.push_back(32768);
+}
 
-	commands.clear();
-	for (int i = 0; i < i_sz; i++)
-	{
-		commands.push_back(inputStr[i]);
-	}
-	//commands.push_back('\n');
+void VM::autoPlay1()
+{
+    sendInput("take tablet");
+    sendInput("use tablet");
+    sendInput("doorway");
+    sendInput("north");
+    sendInput("north");
+    sendInput("bridge");
+    sendInput("continue");
+    sendInput("down");
+    sendInput("east");
+    sendInput("take empty lantern");
+
+    sendInput("west");
+    sendInput("west");
+    sendInput("passage");
+    sendInput("ladder");
+    sendInput("west");
+    sendInput("south");
+    sendInput("north");
+    sendInput("take can");
+    sendInput("use can");
+    sendInput("use lantern");
+
+    sendInput("west");
+    sendInput("ladder");
+    sendInput("darkness");
+    sendInput("continue");
+    sendInput("west");
+    sendInput("west");
+    sendInput("west");
+    sendInput("west");
+    sendInput("north");
+
+    sendInput("take red coin");
+    sendInput("north");
+    sendInput("east");
+    sendInput("take concave coin");
+    sendInput("down");
+    sendInput("take corroded coin");
+    sendInput("up");
+    sendInput("west");
+    sendInput("west");
+    sendInput("take blue coin");
+    sendInput("up");
+    sendInput("take shiny coin");
+    sendInput("down");
+    sendInput("east");
+
+    sendInput("use blue coin");
+    sendInput("use red coin");
+    sendInput("use shiny coin");
+    sendInput("use concave coin");
+    sendInput("use corroded coin");
+    sendInput("north");
+    sendInput("take teleporter");
+
+    sendInput("use teleporter");
+    sendInput("take business card");
+    sendInput("take strange book");
+    sendInput("outside");
+}
+
+void VM::autoPlay2()
+{
+    hackTeleporter();
+    sendInput("use teleporter");
+
+    sendInput("west");
+    sendInput("north");
+    sendInput("north");
+    sendInput("north");
+    sendInput("north");
+    sendInput("north");
+    sendInput("north");
+    sendInput("north");
+    sendInput("east");
+    sendInput("take journal");
+    sendInput("west");
+    sendInput("north");
+    sendInput("north");
+
+    sendInput("take orb");
+
+    sendInput("north");
+    sendInput("east");
+    sendInput("east");
+    sendInput("north");
+    sendInput("west");
+    sendInput("south");
+    sendInput("east");
+    sendInput("east");
+    sendInput("west");
+    sendInput("north");
+    sendInput("north");
+    sendInput("east");
+
+    sendInput("vault");
+
+    sendInput("take mirror");
+    sendInput("use mirror");
+}
+
+void VM::hackTeleporter()
+{
+    m_reg[7] = 25734;
+
+    m_memory[521] = 1;
+    m_memory[522] = 0x8007;
+    m_memory[523] = m_reg[7];
+
+    m_memory[5485] = 6;
+    m_memory[5486] = 21;
+    m_memory[5487] = 21;
+    m_memory[5488] = 21;
+    m_memory[5489] = 21;
+    m_memory[5490] = 21;
 }

@@ -1,1 +1,0 @@
-cls && em++ -O2 -s ASSERTIONS=2 main.cpp window.cpp vm.cpp imgui/imgui.cpp imgui/imgui_draw.cpp imgui/imgui_impl_sdl.cpp -std=c++11 -o out/index.html -lSDL -s USE_SDL=2 --preload-file fs && start http://localhost:8000/out/index.html && python -m SimpleHTTPServer 
