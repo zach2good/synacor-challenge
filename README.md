@@ -1,26 +1,7 @@
 ##== Synacor Challenge ==
 https://challenge.synacor.com/
 
-This is my attempt at taking on the Synacor Challenge. I have created the virtual machine and used ImGui to create an interface in which to interact with it.
-
-[You can test the current build here](http://zachtoogood.com/synacor/index.html)
-
-###Screenshot
-![image](https://raw.githubusercontent.com/zach2good/synacor-challenge/master/img/anim.gif "ScreenShot1")
-
-###Features
-- C++ to Emscripten toolchain
-- Live viewing of Register, Stack and Memory status
-- Dumping and Restoring of machine-state. (Dumping unsupported in browser)
-- Single-step and free-running of the VM.
-- Debug output on a per-opcode basis
-
-###Todo
-- Fix input editor
-- Make all fields editable
-- Write new programs from scratch in editor
-- Dumping & saving state from web
-- Optimisation and general speed-up (Self-check currently takes ~2+ hours)
+This is my attempt at taking on the Synacor Challenge using C++ and Qt5.
 
 ####Original Challenge Text
 ##== Synacor Challenge ==
